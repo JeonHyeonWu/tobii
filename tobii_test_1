@@ -1,0 +1,39 @@
+from tobiiglassesctrl import TobiiGlassesController
+
+TG = TobiiGlassesController()
+#TG = TobiiGlassesPyController ("192.168.71.50")
+#TG = TobiiGlassesPyController (" fe80 :: fffe : ffff : ff00 : ff00 % eth0 ")
+pjt_name = input (" Project 's name : ")
+pjt_id = TG.create_project(pjt_name)
+
+ppt_name = input (" Participant 's name : ")
+ppt_id = TG.create_participant(pjt_id,ppt_name)
+
+calib_id = TG.create_calibration(pjt_id,ppt_id)
+input (" Press ENTER to start calibrating ")
+TG.start_calibration(calib_id)
+
+res = TG.wait_until_calibration_is_done(calib_id)
+if res == False :
+    print(" Calibration failed !")
+    exit(1)
+    
+rec_id = TG.create_recording(ppt_id)
+input (" Press ENTER to start recording ")
+TG.start_streaming()
+TG.start_recording(rec_id)
+TG.send_logged_event(" recording_start ")
+TG.send_tobiipro_event(" recording_event ", " start ")
+
+while True :
+    print (" Press 's' to stop the recording , 'g' to get data ")
+    c = sys.stdin.read(1)
+    if c == 's':
+        break
+    elif c == 'g':
+        TG.get_data()
+        
+TG.send_logged_event(" recording_stop ")
+TG.send_tobiipro_event(" recording_event ", " stop ")
+TG.stop_recording(rec_id)
+TG.stop_streaming()
