@@ -1,0 +1,463 @@
+  
+#include <SoftwareSerial.h> 
+#define TX 0 // arduino softSerial RX -> NodeMcu D6(TX) 
+#define RX 1 // arduino softSerial TX -> NodeMcu D7(RX) 
+#define ON_TIME  50  // 10sec relay on time
+#define BUTTON A1
+#define LED A2
+
+SoftwareSerial arduSerial(RX, TX); // (RX, TX)
+
+int Relay_l = 3;      // select the OUT1 pin
+int Relay_r = 2;      // select the OUT2 pin
+unsigned long preMillis_0 = 0;
+unsigned long preMillis = 0;
+unsigned long preMillis_2 = 0;
+unsigned long preMillis_3 = 0;
+unsigned long preMillis_3_B = 0;
+unsigned long preMillis_3_C = 0;
+unsigned long L_preMillis_0 = 0;
+unsigned long L_preMillis = 0;
+unsigned long L_preMillis_2 = 0;
+unsigned long L_preMillis_3 = 0;
+int count_0 = 2;
+int count_1 = 0;
+int count_1_R = 0;
+int count_1_L = 0;
+int count_2_code = 0;
+int count_2 = 0;
+int count_3 = 0;
+int count_3_A = 0;
+int count_3_i = 0 ;
+int count_3_B = 0 ;
+int count_3_B_R = 0;
+int count_3_B_L = 0;
+int count_3_C = 0 ;
+int count_3_D = 0 ;
+
+boolean ledState_l = false;
+boolean ledState_r = false;
+
+int state = 0;
+int state_f = 0;
+unsigned int long button_delay = 0;
+bool button_hold = false;
+bool pre_button_state = 1;
+bool button_state = 1;
+
+void button(){
+  if (button_hold == true){
+    if (millis() - button_delay >= 150){
+      button_hold = false;
+    }
+  }
+}
+
+
+void setup()
+{
+  //Serial.begin(9600);
+  arduSerial.begin(9600); // 센서 제어용 소프트웨어 시리얼 시작 
+  pinMode(BUTTON, INPUT_PULLUP);
+  pinMode(LED, OUTPUT);
+  pinMode(Relay_l, OUTPUT);
+  pinMode(Relay_r, OUTPUT);
+  //digitalWrite(BUTTON, HIGH);
+  }
+
+void loop()
+{
+  state = state_f%4;
+  button();
+  button_state = digitalRead(BUTTON);
+  if (button_hold == false){
+    if (button_state != pre_button_state){
+      button_hold = true;
+      button_delay = millis();
+      if (button_state ==0){
+        state_f++;
+        //arduSerial.write("Push\n");
+      }
+      pre_button_state = button_state;
+      }
+    }
+  if(state ==0){
+    unsigned long currentMillis_0 = millis(); //현재시간값 가져옴
+    unsigned long L_currentMillis_0 = millis(); //현재시간값 가져옴
+      if (count_0 == 2){
+        preMillis_0 = currentMillis_0;
+        L_preMillis_0 = L_currentMillis_0;
+        count_1 = 0;
+        count_2 = 0;
+        count_3 = 0;
+        count_0++;
+        
+      }
+      else if (count_0 == 3){
+        if (currentMillis_0 - L_preMillis <= 4000){
+          if (L_currentMillis_0 - L_preMillis_0 <= 100){
+            analogWrite(LED,0);
+          }
+          else if(L_currentMillis_0 - L_preMillis_0 > 100 && L_currentMillis_0 - L_preMillis_0 <= 200){
+          analogWrite(LED,255);
+          }
+          else if(L_currentMillis_0 - L_preMillis_0 > 200){
+            L_preMillis_0 = L_currentMillis_0;
+          }
+        }
+        else {
+          boolean ledState_l = true;
+          boolean ledState_r = true;
+          arduSerial.write("R1\n");
+          digitalWrite(Relay_r,ledState_r);
+          arduSerial.write("L1\n");
+          digitalWrite(Relay_l,ledState_l);
+          analogWrite(LED,255);
+          count_0++;
+          arduSerial.write("con\n");
+          }
+    }
+    else if (count_0 == 0){
+      boolean ledState_l = true;
+      boolean ledState_r = true;
+      arduSerial.write("stat0\n");
+      analogWrite(LED,255);
+      arduSerial.write("R1\n");      
+      digitalWrite(Relay_l,ledState_l);
+      arduSerial.write("L1\n");      
+      digitalWrite(Relay_r,ledState_r);
+      count_0++;
+
+    }
+  }
+  else if(state == 1){
+    unsigned long currentMillis = millis(); //현재시간값 가져옴
+    unsigned long L_currentMillis = millis(); //현재시간값 가져옴
+    //arduSerial.write("state = 1\n");
+
+    if(count_1 == 0){
+      arduSerial.write("stat1\n");
+      preMillis = currentMillis;
+      L_preMillis = L_currentMillis;
+      count_0 = 0;
+      count_2 = 0;
+      count_3 = 0;
+      count_1_L = 0;
+      count_1_R = 0;
+      count_1++;
+      
+    }
+    else{
+      if(currentMillis - preMillis <= 3000){
+        if(count_1_L == 0){
+          
+          arduSerial.write("L1\n");
+          digitalWrite(Relay_l, true);
+          
+          arduSerial.write("R0\n");
+          
+          digitalWrite(Relay_r, false);
+          count_1_L++;
+          }
+      }
+      else if(currentMillis - preMillis > 3000 && currentMillis - preMillis <= 6000){ //3초 시간이 흘렀는지 체크
+        if(count_1_R == 0){
+        
+        arduSerial.write("L0\n");
+        digitalWrite(Relay_l, false);
+        
+        arduSerial.write("R1\n");
+        digitalWrite(Relay_r, true);
+        count_1_R++;
+        }
+        else{
+        }
+      }
+      else if(currentMillis - preMillis >= 6000){ //1000초 시간이 흘렀는지 체크
+        preMillis = currentMillis;
+        count_1_L = 0;
+        count_1_R = 0;
+      }
+      if(L_currentMillis - L_preMillis <= 1000){
+        analogWrite(LED,0);
+        //arduSerial.write("stat1\n");
+        }
+
+      else if(L_currentMillis - L_preMillis > 1000 && L_currentMillis - L_preMillis <= 2000){
+        analogWrite(LED,255);
+      }
+      else if(L_currentMillis - L_preMillis > 2000){
+        L_preMillis = L_currentMillis;
+      }
+    }
+  }
+
+    else if(state ==2){
+      unsigned long currentMillis_2 = millis(); //현재시간값 가져옴
+      unsigned long L_currentMillis_2 = millis(); //현재시간값 가져옴 -> 내려?
+      //arduSerial.write("state = 2\n");
+      if(count_2 ==0){
+        
+        arduSerial.write("stat2\n");
+        preMillis_2 = currentMillis_2;
+        L_preMillis_2 = L_currentMillis_2;
+        analogWrite(LED,255);
+        count_0 = 0;
+        count_1 = 0;
+        count_3 = 0;
+        count_2_code = 0;
+        count_2++;
+        
+      }
+      else{
+        if(L_currentMillis_2 - L_preMillis_2 <= 1000){
+          analogWrite(LED,0);
+          //arduSerial.write("stat2\n");
+          }
+        else if(L_currentMillis_2 - L_preMillis_2 > 1000 && L_currentMillis_2 - L_preMillis_2 <= 1250){
+          analogWrite(LED,255);
+          }
+        else if(L_currentMillis_2 - L_preMillis_2 > 1250 && L_currentMillis_2 - L_preMillis_2 <= 1500){
+          analogWrite(LED,0);
+          }
+        else if(L_currentMillis_2 - L_preMillis_2 > 1500 && L_currentMillis_2 - L_preMillis_2 <= 1750){
+          analogWrite(LED,255);
+          }
+        else if(L_currentMillis_2 - L_preMillis_2 > 2000){
+          analogWrite(LED,0);
+          L_preMillis_2 = L_currentMillis_2;
+        }
+      //case 1
+        if(currentMillis_2 - preMillis_2 <= 5000){
+          if(count_2_code == 0){
+          
+          arduSerial.write("R1\n");
+          digitalWrite(Relay_r, true);
+          arduSerial.write("L1\n");
+          digitalWrite(Relay_l, true); 
+          count_2_code++;
+          }
+        }
+      //case 2
+        else if(currentMillis_2 - preMillis_2 > 5000 && currentMillis_2 - preMillis_2 <= 35000){
+          if(count_2_code == 1){          
+          digitalWrite(Relay_l, false); 
+          digitalWrite(Relay_r, false);
+          arduSerial.write("R0\n");
+          arduSerial.write("L0\n");
+          count_2_code++;
+          }
+        }
+        else if(currentMillis_2 - preMillis_2 > 35000 && currentMillis_2 - preMillis_2 <= 65000){
+          if(count_2_code == 2){          
+          
+          arduSerial.write("R1\n");
+          digitalWrite(Relay_r, true);
+          
+          arduSerial.write("L1\n");
+          digitalWrite(Relay_l, true);
+          count_2_code++;
+          }
+        }
+      //case 3
+        else if(currentMillis_2 - preMillis_2 > 65000 && currentMillis_2 - preMillis_2 <= 75000){
+          if(count_2_code == 3){
+          
+          arduSerial.write("R0\n");
+          digitalWrite(Relay_r, false);
+          count_2_code++;
+          }
+        }
+      //case 4
+        else if(currentMillis_2 - preMillis_2 > 75000 && currentMillis_2 - preMillis_2 <= 85000){
+          if(count_2_code == 4){ 
+          
+          arduSerial.write("L0\n");
+          digitalWrite(Relay_l, false); 
+          count_2_code++;
+          }
+        }
+      //case 5
+        else if(currentMillis_2 - preMillis_2 > 85000 && currentMillis_2 - preMillis_2 <= 95000){
+          if(count_2_code == 5){ 
+          
+          digitalWrite(Relay_r, true);
+          arduSerial.write("R1\n");
+          
+          arduSerial.write("L1\n");
+          digitalWrite(Relay_l, true); 
+          count_2_code++;
+          }
+        }
+      //case 6
+        else if(currentMillis_2 - preMillis_2 > 95000 && currentMillis_2 - preMillis_2 <= 105000){
+          if(count_2_code == 6){ 
+          
+          arduSerial.write("L0\n");
+          digitalWrite(Relay_l, false); 
+          count_2_code++;
+          }
+        }
+      //case 7
+        else if(currentMillis_2 - preMillis_2 > 105000 && currentMillis_2 - preMillis_2 <= 115000){
+          if(count_2_code == 7){ 
+          
+          arduSerial.write("R0\n");
+          digitalWrite(Relay_r, false); 
+          count_2_code++;
+          }
+        }
+      //case 8
+        else if(currentMillis_2 - preMillis_2 > 115000 && currentMillis_2 - preMillis_2 <= 125000){
+          if(count_2_code == 8){ 
+          
+          arduSerial.write("R1\n");
+          digitalWrite(Relay_r, true);
+          
+          arduSerial.write("L1\n");
+          digitalWrite(Relay_l, true);
+          count_2_code++;
+          }
+        }
+        else if(currentMillis_2 - preMillis_2 > 125000 && currentMillis_2 - preMillis_2 <= 155000){
+          if(count_2_code == 9){ 
+          
+          arduSerial.write("R1\n");
+          digitalWrite(Relay_r, true);
+          arduSerial.write("L1\n");
+          digitalWrite(Relay_l, true);
+          count_2_code++;
+          }
+        }
+        else if(currentMillis_2 - preMillis_2 > 155000){
+          if(count_2_code == 10){
+            
+            arduSerial.write("R0\n");
+            digitalWrite(Relay_r, false);
+            
+            arduSerial.write("L0\n");
+            digitalWrite(Relay_l, false);
+          }
+        }
+      }
+    }
+
+    else if(state ==3){
+      unsigned long currentMillis_3 = millis(); //현재시간값 가져옴
+      unsigned long L_currentMillis_3 = millis(); //현재시간값 가져옴
+      unsigned long currentMillis_3_B = millis();
+      unsigned long currentMillis_3_C = millis();
+      //arduSerial.write("state = 3\n");
+      if (count_3 == 0){
+        preMillis_3 = currentMillis_3;
+        L_preMillis_3 = L_currentMillis_3;
+        arduSerial.write("stat3\n");
+        count_1 = 0;
+        count_0 = 0;
+        count_2 = 0;
+        count_3_A = 0;
+        count_3_B = 0;
+        count_3_B_R = 0;
+        count_3_B_L = 0;
+        count_3_C = 0;
+        count_3_D = 0;
+        count_3_i = 0;
+        count_3++;
+        
+      }
+      else{
+        if(L_currentMillis_3 - L_preMillis_3 <= 1000){
+          analogWrite(LED,0);
+          //arduSerial.write("stat3\n");
+        }
+        else if(L_currentMillis_3 - L_preMillis_3 > 1000 && L_currentMillis_3 - L_preMillis_3 <= 1200){
+          analogWrite(LED,255);
+        }
+        else if(L_currentMillis_3 - L_preMillis_3 > 1200 && L_currentMillis_3 - L_preMillis_3 <= 1400){
+          analogWrite(LED,0);
+        }
+        else if(L_currentMillis_3 - L_preMillis_3 > 1400 && L_currentMillis_3 - L_preMillis_3 <= 1600){
+          analogWrite(LED,255);
+        }
+        else if(L_currentMillis_3 - L_preMillis_3 > 1600 && L_currentMillis_3 - L_preMillis_3 <= 1800){
+          analogWrite(LED,0);
+        }
+        else if(L_currentMillis_3 - L_preMillis_3 > 1800 && L_currentMillis_3 - L_preMillis_3 <= 2000){
+          analogWrite(LED,255);
+        }
+        else if(L_currentMillis_3 - L_preMillis_3 > 2000){
+          analogWrite(LED,0);
+          L_preMillis_3 = L_currentMillis_3;
+        }
+      //case A
+        if(currentMillis_3 - preMillis_3 <= 5000){
+          if(count_3_A == 0){
+          arduSerial.write("R1\n");
+          digitalWrite(Relay_r, true);
+          arduSerial.write("L1\n");
+          digitalWrite(Relay_l, true);
+          count_3_A++;
+          }
+        }
+      //case B~D
+        if(currentMillis_3 - preMillis_3 > 5000 && currentMillis_3 - preMillis_3 <= 150000){
+          if (count_3_i == 0){           //초기화
+            preMillis_3_B = currentMillis_3_B;
+            count_3_i++;
+          }
+          else if (count_3_D < 7){
+            if(count_3_B < 3){
+              if(currentMillis_3_B - preMillis_3_B <= 3000){
+                if(count_3_B_L == 0){
+                  arduSerial.write("R0\n");
+                  digitalWrite(Relay_r, false);
+                  arduSerial.write("L1\n");
+                  digitalWrite(Relay_l, true); 
+                  count_3_B_L++;
+                }
+              }
+              else if(currentMillis_3_B - preMillis_3_B > 3000 && currentMillis_3_B - preMillis_3_B <= 6000){
+                if(count_3_B_R == 0){
+                  arduSerial.write("R1\n");
+                  digitalWrite(Relay_r, true);
+                  arduSerial.write("L0\n");
+                  digitalWrite(Relay_l, false); 
+                  count_3_B_R++;
+                  }
+                }
+              else if(currentMillis_3_B - preMillis_3_B > 6000){
+                preMillis_3_B = currentMillis_3_B;
+                preMillis_3_C = currentMillis_3_C;
+                count_3_B_R = 0;
+                count_3_B_L = 0;
+                count_3_B++;
+            }
+          }
+          else if (count_3_B ==3){
+            if(currentMillis_3_C - preMillis_3_C <= 2000){
+              if(count_3_C == 0){
+              digitalWrite(Relay_l, true);
+              arduSerial.write("R1\n");
+              digitalWrite(Relay_r, true);
+              arduSerial.write("L1\n");
+              count_3_C++;
+              }
+            }
+            else if(currentMillis_3_C - preMillis_3_C > 2000){
+              count_3_B = 0;
+              count_3_C = 0;
+              preMillis_3_B = currentMillis_3_B;
+              count_3_D++;
+            }
+          }
+        }
+        else if(count_3_D==7){
+          arduSerial.write("R0\n");
+          digitalWrite(Relay_r, false);
+          arduSerial.write("L0\n");
+          digitalWrite(Relay_l, false);
+          }
+      }
+    }
+  }
+}
